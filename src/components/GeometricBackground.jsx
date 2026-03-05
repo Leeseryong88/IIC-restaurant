@@ -18,9 +18,9 @@ const GeometricBackground = () => {
     window.addEventListener('resize', handleResize);
 
     const particles = [];
-    const particleCount = 180; // Significantly increased for a denser, starry look
-    const connectionDistance = 110; // Reduced to keep the network delicate with more points
-    const mouse = { x: null, y: null, radius: 140 }; // Reduced interaction radius
+    const particleCount = 220; // Increased for more activity
+    const connectionDistance = 130; // Increased for more visible networking
+    const mouse = { x: null, y: null, radius: 160 }; 
 
     const handleMouseMove = (event) => {
       const rect = canvas.getBoundingClientRect();
@@ -44,34 +44,40 @@ const GeometricBackground = () => {
       reset() {
         this.x = Math.random() * (canvas.width / window.devicePixelRatio);
         this.y = Math.random() * (canvas.height / window.devicePixelRatio);
-        this.size = Math.random() * 1.2 + 0.4; // Even smaller, more delicate points
+        this.size = Math.random() * 1.5 + 0.6; // Slightly larger for better visibility
         this.baseSize = this.size;
-        this.vx = (Math.random() - 0.5) * 0.12; // Slower movement speed
-        this.vy = (Math.random() - 0.5) * 0.12; // Slower movement speed
-        this.opacity = Math.random() * 0.25 + 0.1; // Very subtle brightness
+        this.vx = (Math.random() - 0.5) * 0.45; // Increased speed (was 0.12)
+        this.vy = (Math.random() - 0.5) * 0.45; // Increased speed (was 0.12)
+        this.opacity = Math.random() * 0.35 + 0.15; // Slightly brighter
         this.baseOpacity = this.opacity;
+        this.angle = Math.random() * Math.PI * 2; // For breathing effect
+        this.pulseSpeed = Math.random() * 0.02 + 0.01;
       }
 
       draw() {
+        // Breathing size effect
+        const pulseSize = this.size + Math.sin(this.angle) * 0.3;
+        
         // Draw small subtle glow
         ctx.beginPath();
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, pulseSize * 2.5);
         gradient.addColorStop(0, `rgba(255, 255, 255, ${this.opacity * 0.4})`);
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = gradient;
-        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, pulseSize * 2.5, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw core
         ctx.beginPath();
         ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
-        ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, pulseSize / 2, 0, Math.PI * 2);
         ctx.fill();
       }
 
       update() {
         this.x += this.vx;
         this.y += this.vy;
+        this.angle += this.pulseSpeed; // Update pulse angle
 
         // Wrap around screen
         const w = canvas.width / window.devicePixelRatio;
@@ -89,13 +95,13 @@ const GeometricBackground = () => {
 
           if (distance < mouse.radius) {
             const force = (mouse.radius - distance) / mouse.radius;
-            // Drifting away even more slowly
-            this.x -= dx * force * 0.01;
-            this.y -= dy * force * 0.01;
+            // Drifting away slightly faster for more reaction
+            this.x -= dx * force * 0.02;
+            this.y -= dy * force * 0.02;
             
-            this.opacity = Math.min(0.4, this.opacity + 0.003);
+            this.opacity = Math.min(0.6, this.opacity + 0.005);
           } else {
-            if (this.opacity > this.baseOpacity) this.opacity -= 0.001;
+            if (this.opacity > this.baseOpacity) this.opacity -= 0.002;
           }
         }
       }
@@ -121,11 +127,11 @@ const GeometricBackground = () => {
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < connectionDistance) {
-            const opacity = (1 - (distance / connectionDistance)) * 0.06;
+            const opacity = (1 - (distance / connectionDistance)) * 0.12; // Increased line visibility (was 0.06)
             
             ctx.beginPath();
             ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-            ctx.lineWidth = 0.25;
+            ctx.lineWidth = 0.4; // Slightly thicker lines (was 0.25)
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
             ctx.stroke();
@@ -152,7 +158,7 @@ const GeometricBackground = () => {
       className="absolute inset-0 w-full h-full pointer-events-auto"
       style={{ 
         background: 'transparent',
-        filter: 'blur(0.2px)'
+        filter: 'blur(0px)' // Removed blur for sharper, more active points
       }}
     />
   );
