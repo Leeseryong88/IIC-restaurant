@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../firebase";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp, orderBy, writeBatch } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp, orderBy, writeBatch, runTransaction } from "firebase/firestore";
 import { Users, Clock, Settings, Trash2, Power, PowerOff, RefreshCw, ChevronLeft, Plus, Check, X, Edit2, Lock, ShieldCheck, Search, Shield, Calendar as CalendarIcon, Hash, Layers, Sliders, PlayCircle, BarChart3, PieChart, Activity, TrendingUp, Timer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { clsx } from "clsx";
@@ -58,6 +58,26 @@ export default function Admin() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTime, setFilterTime] = useState("all");
+
+  const syncAllSlots = async () => {
+    if (!confirm("모든 타임슬롯의 잔여석을 실제 예약 내역과 동기화하시겠습니까?")) return;
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      timeSlots.forEach(slot => {
+        const actualBooked = reservations.filter(r => r.timeSlotId === slot.id).length;
+        const correctRemaining = Math.max(0, slot.capacity - actualBooked);
+        batch.update(doc(db, "timeSlots", slot.id), { remaining: correctRemaining });
+      });
+      await batch.commit();
+      alert("모든 타임슬롯의 잔여석이 실제 예약 내역과 동기화되었습니다.");
+    } catch (err) {
+      console.error(err);
+      alert("동기화 중 오류 발생");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -150,8 +170,9 @@ export default function Admin() {
   // 대시보드 통계 계산
   const stats = (() => {
     const totalCap = timeSlots.reduce((acc, s) => acc + (Number(s.capacity) || 0), 0);
-    const totalRem = timeSlots.reduce((acc, s) => acc + (Number(s.remaining) || 0), 0);
-    const totalBooked = totalCap - totalRem;
+    // 실제 예약 문서의 개수를 전체 예약 수로 사용
+    const totalBooked = reservations.length;
+    const totalRem = Math.max(0, totalCap - totalBooked);
     const fillRate = totalCap > 0 ? Math.round((totalBooked / totalCap) * 100) : 0;
     return { totalCap, totalRem, totalBooked, fillRate };
   })();
@@ -248,8 +269,23 @@ export default function Admin() {
 
   const deleteReservation = async (resId, slotId) => {
     if (confirm("해당 예약을 취소하시겠습니까?")) {
-      await deleteDoc(doc(db, "reservations", resId));
-      await updateDoc(doc(db, "timeSlots", slotId), { remaining: increment(1) });
+      try {
+        const resRef = doc(db, "reservations", resId);
+        const slotRef = doc(db, "timeSlots", slotId);
+
+        await runTransaction(db, async (transaction) => {
+          const resSnap = await transaction.get(resRef);
+          if (!resSnap.exists()) return;
+
+          transaction.delete(resRef);
+          transaction.update(slotRef, {
+            remaining: increment(1)
+          });
+        });
+      } catch (err) {
+        console.error("취소 실패:", err);
+        alert("취소 중 오류가 발생했습니다.");
+      }
     }
   };
 
@@ -439,6 +475,7 @@ export default function Admin() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button onClick={syncAllSlots} disabled={loading} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="데이터 동기화 (잔여석 재계산)"><RefreshCw size={18} className={loading ? "animate-spin" : ""} /></button>
           <button onClick={() => setShowCreateModal(true)} className="bg-black text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-zinc-800 transition-all shadow-lg shadow-black/5 active:scale-[0.95]"><Plus size={18} /><span>생성</span></button>
           <button onClick={() => setShowAllBoardsModal(true)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="모든 예약판"><Layers size={18} /></button>
           <button onClick={() => setShowSecurityModal(true)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="보안"><Lock size={18} /></button>
@@ -544,8 +581,10 @@ export default function Admin() {
               <div className="flex-1 overflow-y-auto scrollbar-hide">
                 <div className="divide-y divide-gray-50">
                   {timeSlots.map(slot => {
-                    const booked = slot.capacity - slot.remaining;
-                    const rate = slot.capacity > 0 ? Math.round((booked / slot.capacity) * 100) : 0;
+                    // 실제 예약 리스트에서 해당 타임슬롯의 예약 수를 직접 카운트 (DB 필드에 의존하지 않음)
+                    const actualBooked = reservations.filter(r => r.timeSlotId === slot.id).length;
+                    const displayRemaining = Math.max(0, slot.capacity - actualBooked);
+                    const rate = slot.capacity > 0 ? Math.min(100, Math.round((actualBooked / slot.capacity) * 100)) : 0;
                     return (
                       <div key={slot.id} className="p-6 hover:bg-gray-50/80 transition-all group rounded-[32px]">
                         {editingSlotId === slot.id ? (
@@ -573,8 +612,8 @@ export default function Admin() {
                             <div className="space-y-2">
                               <div className="flex justify-between items-end">
                                 <div className="flex gap-4">
-                                  <div className="flex flex-col"><span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Booked</span><span className="text-sm font-black">{booked}</span></div>
-                                  <div className="flex flex-col"><span className="text-[9px] text-blue-400 font-black uppercase tracking-widest">Rem</span><span className="text-sm font-black text-blue-600">{slot.remaining}</span></div>
+                                  <div className="flex flex-col"><span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Booked</span><span className="text-sm font-black text-zinc-900">{actualBooked}</span></div>
+                                  <div className="flex flex-col"><span className="text-[9px] text-blue-400 font-black uppercase tracking-widest">Rem</span><span className="text-sm font-black text-blue-600">{displayRemaining}</span></div>
                                 </div>
                                 <div className="text-right flex items-center gap-2">
                                   <span className="text-sm font-black tracking-tight">{rate}%</span>

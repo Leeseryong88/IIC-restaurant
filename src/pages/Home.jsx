@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp, runTransaction } from "firebase/firestore";
 import { Clock, Phone, ChevronRight, X, CheckCircle2, AlertCircle, UserCog, PowerOff, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clsx } from "clsx";
@@ -128,37 +128,42 @@ export default function Home() {
     try {
       const phoneNoDash = phone.replace(/-/g, "");
       const todayStr = new Date().toLocaleDateString('sv-SE');
-      
-      const resQuery = query(
-        collection(db, "reservations"),
-        where("phone", "==", phoneNoDash),
-        where("date", "==", todayStr)
-      );
-      const resSnap = await getDocs(resQuery);
-      
-      if (!resSnap.empty) {
-        showStatus('error', '중복 예약', '이미 오늘 예약 내역이 존재합니다.');
-        setLoading(false);
-        return;
-      }
-
-      if (selectedSlot.remaining <= 0) {
-        showStatus('error', '매진', '선택한 시간대의 좌석이 매진되었습니다.');
-        setLoading(false);
-        return;
-      }
-
       const resId = `${phoneNoDash}_${selectedSlot.id}`;
-      await setDoc(doc(db, "reservations", resId), {
-        phone: phoneNoDash,
-        timeSlotId: selectedSlot.id,
-        time: selectedSlot.time,
-        date: selectedSlot.date,
-        createdAt: serverTimestamp(),
-      });
+      const resRef = doc(db, "reservations", resId);
+      const slotRef = doc(db, "timeSlots", selectedSlot.id);
 
-      await updateDoc(doc(db, "timeSlots", selectedSlot.id), {
-        remaining: increment(-1)
+      await runTransaction(db, async (transaction) => {
+        // 1. 최신 타임슬롯 데이터 조회
+        const slotSnap = await transaction.get(slotRef);
+        if (!slotSnap.exists()) {
+          throw new Error("SLOT_NOT_FOUND");
+        }
+        const slotData = slotSnap.data();
+
+        // 2. 잔여석 확인
+        if (slotData.remaining <= 0) {
+          throw new Error("NO_SEATS_LEFT");
+        }
+
+        // 3. 중복 예약 확인 (휴대폰 번호 + 날짜 조합)
+        // Note: transaction 안에서 query를 직접 쓸 수 없으므로, 예약 문서 ID(resId) 존재 여부로 확인
+        const resSnap = await transaction.get(resRef);
+        if (resSnap.exists()) {
+          throw new Error("ALREADY_RESERVED");
+        }
+
+        // 4. 예약 생성 및 잔여석 차감
+        transaction.set(resRef, {
+          phone: phoneNoDash,
+          timeSlotId: selectedSlot.id,
+          time: slotData.time,
+          date: slotData.date,
+          createdAt: serverTimestamp(),
+        });
+
+        transaction.update(slotRef, {
+          remaining: increment(-1)
+        });
       });
 
       showStatus('success', '예약 완료', `${selectedSlot.time} 예약이 성공적으로 완료되었습니다.`);
@@ -166,7 +171,15 @@ export default function Home() {
       setSelectedSlot(null);
     } catch (err) {
       console.error(err);
-      showStatus('error', '오류 발생', '예약 중 문제가 발생했습니다.');
+      if (err.message === "NO_SEATS_LEFT") {
+        showStatus('error', '매진', '선택한 시간대의 좌석이 매진되었습니다.');
+      } else if (err.message === "ALREADY_RESERVED") {
+        showStatus('error', '중복 예약', '이미 오늘 예약 내역이 존재합니다.');
+      } else if (err.message === "SLOT_NOT_FOUND") {
+        showStatus('error', '오류 발생', '시간대 정보를 찾을 수 없습니다.');
+      } else {
+        showStatus('error', '오류 발생', '예약 중 문제가 발생했습니다.');
+      }
     } finally {
       setLoading(false);
     }
@@ -213,14 +226,24 @@ export default function Home() {
     if (!searchResult) return;
     setLoading(true);
     try {
-      await deleteDoc(doc(db, "reservations", searchResult.id));
-      await updateDoc(doc(db, "timeSlots", searchResult.timeSlotId), {
-        remaining: increment(1)
+      const resRef = doc(db, "reservations", searchResult.id);
+      const slotRef = doc(db, "timeSlots", searchResult.timeSlotId);
+
+      await runTransaction(db, async (transaction) => {
+        const resSnap = await transaction.get(resRef);
+        if (!resSnap.exists()) return; // 이미 취소됨
+
+        transaction.delete(resRef);
+        transaction.update(slotRef, {
+          remaining: increment(1)
+        });
       });
+
       showStatus('success', '취소 완료', '예약이 정상적으로 취소되었습니다.');
       setSearchResult(null);
       setPhone("");
     } catch (err) {
+      console.error(err);
       showStatus('error', '오류 발생', '취소 처리 중 문제가 발생했습니다.');
     } finally {
       setLoading(false);
@@ -405,7 +428,7 @@ export default function Home() {
                         "text-[10px] font-medium",
                         selectedSlot?.id === slot.id ? "text-white/60" : "text-gray-400"
                       )}>
-                        잔여 {slot.remaining}석
+                        잔여 {Math.max(0, slot.remaining)}석
                       </div>
                       <div className={cn(
                         "mt-3 h-[2px] w-full bg-current opacity-10",
