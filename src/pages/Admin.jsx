@@ -569,8 +569,7 @@ export default function Admin() {
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
             {/* Card 1: System Status with Countdown Animation */}
             <div 
-              onClick={() => setShowSettingsModal(true)}
-              className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:border-gray-200 transition-all h-44"
+              className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group hover:border-gray-200 transition-all h-44"
             >
               <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-900 border border-zinc-100"><Activity size={20} /></div>
@@ -596,6 +595,14 @@ export default function Admin() {
                       style={{ width: `${countdown.percent}%` }} 
                     />
                   </div>
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button 
+                    onClick={() => setShowSettingsModal(true)}
+                    className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em] hover:text-black transition-all"
+                  >
+                    Setting
+                  </button>
                 </div>
               </div>
               {sysConfig.isReservationEnabled && countdown.status === "active" && (
