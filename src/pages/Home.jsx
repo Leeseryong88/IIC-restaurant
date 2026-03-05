@@ -114,7 +114,7 @@ export default function Home() {
       let msg = "현재 예약이 불가능합니다.";
       if (resStatus.reason === "SYSTEM_DISABLED") msg = "시스템이 일시 중지되었습니다.";
       if (resStatus.reason === "BEFORE_START") msg = `예약은 ${resStatus.time}부터 가능합니다.`;
-      if (resStatus.reason === "AFTER_CUTOFF") msg = `금일 예약은 ${resStatus.time}에 마감되었습니다.`;
+      if (resStatus.reason === "AFTER_CUTOFF") msg = `예약은 ${resStatus.time}에 마감되었습니다.`;
       showStatus('error', '예약 불가', msg);
       return;
     }
@@ -409,7 +409,7 @@ export default function Home() {
                     <p className="text-xs opacity-80">
                       {resStatus.reason === "SYSTEM_DISABLED" && "시스템이 일시 중지되었습니다."}
                       {resStatus.reason === "BEFORE_START" && `예약은 ${resStatus.time}부터 가능합니다.`}
-                      {resStatus.reason === "AFTER_CUTOFF" && `금일 예약은 ${resStatus.time}에 마감되었습니다.`}
+                      {resStatus.reason === "AFTER_CUTOFF" && `예약은 ${resStatus.time}에 마감되었습니다.`}
                     </p>
                   </div>
                 </div>
