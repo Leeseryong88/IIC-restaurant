@@ -52,6 +52,7 @@ export default function Admin() {
   
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
 
@@ -119,24 +120,26 @@ export default function Admin() {
     
     if (now < startDate) {
       const diff = startDate - now;
-      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
       return { 
         label: "Starts In", 
         percent: 0, 
-        text: `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`,
+        text: `${hours}시간 ${mins}분 ${secs}초`,
         status: "waiting"
       };
     } else if (now < cutoffDate) {
       const total = cutoffDate - startDate;
       const current = cutoffDate - now;
       const percent = Math.max(0, Math.min(100, (current / total) * 100));
-      const mins = Math.floor(current / 60000);
+      const hours = Math.floor(current / 3600000);
+      const mins = Math.floor((current % 3600000) / 60000);
       const secs = Math.floor((current % 60000) / 1000);
       return { 
         label: "Time Left", 
         percent: 100 - percent, 
-        text: `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`,
+        text: `${hours}시간 ${mins}분 ${secs}초`,
         status: "active"
       };
     } else {
@@ -254,6 +257,7 @@ export default function Admin() {
     e.preventDefault();
     if (!currentPassword) return alert("현재 비밀번호를 입력해 주세요.");
     if (!newPassword || newPassword.length < 6) return alert("새 비밀번호는 최소 6자 이상이어야 합니다.");
+    if (newPassword !== confirmPassword) return alert("새 비밀번호가 일치하지 않습니다.");
     if (!confirm("관리자 비밀번호를 변경하시겠습니까?")) return;
     
     setIsUpdatingPassword(true);
@@ -270,6 +274,7 @@ export default function Admin() {
         alert("비밀번호가 성공적으로 변경되었습니다.");
         setCurrentPassword("");
         setNewPassword("");
+        setConfirmPassword("");
         setShowSecurityModal(false);
       }
     } catch (err) { 
@@ -315,7 +320,7 @@ export default function Admin() {
                 </div>
                 {customSlots.map((slot, index) => (
                   <div key={index} className="flex items-center gap-3">
-                    <input type="text" value={slot.time} onChange={(e) => updateSlotValue(index, "time", e.target.value)} placeholder="11:30" className="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
+                    <input type="time" value={slot.time} onChange={(e) => updateSlotValue(index, "time", e.target.value)} className="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
                     <input type="number" value={slot.capacity} onChange={(e) => updateSlotValue(index, "capacity", e.target.value)} className="w-20 p-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-black/5" />
                     <button onClick={() => removeSlotField(index)} className="p-3 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                   </div>
@@ -371,11 +376,11 @@ export default function Admin() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">시작 시간</label>
-                  <input type="text" value={sysConfig.reservationStart} onChange={(e) => setSysConfig({...sysConfig, reservationStart: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
+                  <input type="time" value={sysConfig.reservationStart} onChange={(e) => setSysConfig({...sysConfig, reservationStart: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">마감 시간</label>
-                  <input type="text" value={sysConfig.reservationCutoff} onChange={(e) => setSysConfig({...sysConfig, reservationCutoff: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
+                  <input type="time" value={sysConfig.reservationCutoff} onChange={(e) => setSysConfig({...sysConfig, reservationCutoff: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-black/5" />
                 </div>
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
@@ -409,6 +414,10 @@ export default function Admin() {
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">New Password</label>
                 <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••" className="w-full p-5 bg-gray-50 border border-gray-100 rounded-[20px] text-lg focus:outline-none focus:ring-2 focus:ring-black/5" />
               </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Confirm New Password</label>
+                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••" className="w-full p-5 bg-gray-50 border border-gray-100 rounded-[20px] text-lg focus:outline-none focus:ring-2 focus:ring-black/5" />
+              </div>
               <button type="submit" disabled={isUpdatingPassword} className="w-full bg-black text-white py-5 rounded-[20px] font-bold shadow-xl active:scale-[0.98] transition-all">{isUpdatingPassword ? "Processing..." : "비밀번호 변경"}</button>
             </form>
           </div>
@@ -432,7 +441,6 @@ export default function Admin() {
         <div className="flex items-center gap-3">
           <button onClick={() => setShowCreateModal(true)} className="bg-black text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-zinc-800 transition-all shadow-lg shadow-black/5 active:scale-[0.95]"><Plus size={18} /><span>생성</span></button>
           <button onClick={() => setShowAllBoardsModal(true)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="모든 예약판"><Layers size={18} /></button>
-          <button onClick={() => setShowSettingsModal(true)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="설정"><Sliders size={18} /></button>
           <button onClick={() => setShowSecurityModal(true)} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl transition-all border border-gray-200" title="보안"><Lock size={18} /></button>
         </div>
       </header>
@@ -441,7 +449,10 @@ export default function Admin() {
         {/* Statistics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card 1: System Status with Countdown Animation */}
-          <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group">
+          <div 
+            onClick={() => setShowSettingsModal(true)}
+            className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:border-gray-200 transition-all"
+          >
             <div className="flex items-center justify-between mb-4 relative z-10">
               <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center text-zinc-900 border border-zinc-100"><Activity size={24} /></div>
               <div className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-500", 
@@ -455,8 +466,8 @@ export default function Admin() {
                 <span>Reservation Status</span>
                 <span className="text-zinc-900">{countdown.label}</span>
               </p>
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="text-2xl font-black tracking-tight">{countdown.text}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xl font-black tracking-tight">{countdown.text}</h3>
                 <div className="flex-1 h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100 relative">
                   <div 
                     className={cn(
