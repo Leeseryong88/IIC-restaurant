@@ -512,21 +512,20 @@ export default function Admin() {
       </header>
 
       <main className="p-8 max-w-[1600px] mx-auto w-full flex-1 space-y-8 animate-in fade-in duration-700">
-        {/* Statistics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {/* Card 0: Date Selection Calendar (Square) */}
+        {/* Statistics Row: Calendar (Square/Fixed) + Others (Horizontal/Flexible) */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Card 0: Date Selection Calendar (Small Square) */}
           <div 
             onClick={() => dateInputRef.current?.showPicker()}
-            className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-gray-200 transition-all aspect-square relative"
+            className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-gray-200 transition-all w-44 h-44 shrink-0 relative"
           >
-            <div className="bg-black py-3 text-center">
-              <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{stats.month}</span>
+            <div className="bg-black py-2.5 text-center">
+              <span className="text-[10px] font-black text-white tracking-[0.2em] uppercase">{stats.month}</span>
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <span className="text-5xl font-black tracking-tighter text-zinc-900">{stats.day}</span>
-              <span className="text-[10px] font-black text-gray-400 mt-2 uppercase tracking-widest">{stats.dayName}</span>
+            <div className="flex-1 flex flex-col items-center justify-center p-3">
+              <span className="text-4xl font-black tracking-tighter text-zinc-900 leading-none">{stats.day}</span>
+              <span className="text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">{stats.dayName}</span>
             </div>
-            {/* Invisible input to trigger native picker */}
             <input 
               ref={dateInputRef}
               type="date" 
@@ -536,83 +535,85 @@ export default function Admin() {
             />
           </div>
 
-          {/* Card 1: System Status with Countdown Animation */}
-          <div 
-            onClick={() => setShowSettingsModal(true)}
-            className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:border-gray-200 transition-all"
-          >
-            <div className="flex items-center justify-between mb-4 relative z-10">
-              <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center text-zinc-900 border border-zinc-100"><Activity size={24} /></div>
-              <div className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-500", 
-                sysConfig.isReservationEnabled ? (countdown.status === "active" ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-600 border-amber-100") : "bg-red-50 text-red-600 border-red-100"
-              )}>
-                {sysConfig.isReservationEnabled ? (countdown.status === "active" ? "Live" : countdown.status === "waiting" ? "Pending" : "Closed") : "Stopped"}
+          {/* Statistics Grid for the rest 4 cards */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
+            {/* Card 1: System Status with Countdown Animation */}
+            <div 
+              onClick={() => setShowSettingsModal(true)}
+              className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:border-gray-200 transition-all h-44"
+            >
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-900 border border-zinc-100"><Activity size={20} /></div>
+                <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all duration-500", 
+                  sysConfig.isReservationEnabled ? (countdown.status === "active" ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-600 border-amber-100") : "bg-red-50 text-red-600 border-red-100"
+                )}>
+                  {sysConfig.isReservationEnabled ? (countdown.status === "active" ? "Live" : countdown.status === "waiting" ? "Pending" : "Closed") : "Stopped"}
+                </div>
               </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 flex justify-between">
+                  <span>Reservation Status</span>
+                  <span className="text-zinc-900">{countdown.label}</span>
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-black tracking-tight">{countdown.text}</h3>
+                  <div className="flex-1 h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100 relative">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-1000 ease-linear rounded-full",
+                        countdown.status === "active" ? "bg-green-500" : "bg-gray-300"
+                      )} 
+                      style={{ width: `${countdown.percent}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+              {sysConfig.isReservationEnabled && countdown.status === "active" && (
+                <div className="absolute inset-0 bg-green-500/5 animate-pulse pointer-events-none" />
+              )}
             </div>
-            <div className="relative z-10">
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 flex justify-between">
-                <span>Reservation Status</span>
-                <span className="text-zinc-900">{countdown.label}</span>
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xl font-black tracking-tight">{countdown.text}</h3>
-                <div className="flex-1 h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100 relative">
-                  <div 
-                    className={cn(
-                      "h-full transition-all duration-1000 ease-linear rounded-full",
-                      countdown.status === "active" ? "bg-green-500" : "bg-gray-300"
-                    )} 
-                    style={{ width: `${countdown.percent}%` }} 
-                  />
+
+            {/* Card 2: Total Booked */}
+            <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-44">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100"><Users size={20} /></div>
+                <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Today's Goal</div>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Booked</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-2xl font-black tracking-tighter">{stats.totalBooked}</h3>
+                  <span className="text-gray-300 font-bold text-xs">/ {stats.totalCap} 명</span>
                 </div>
               </div>
             </div>
-            {/* Background pulsing animation if active */}
-            {sysConfig.isReservationEnabled && countdown.status === "active" && (
-              <div className="absolute inset-0 bg-green-500/5 animate-pulse pointer-events-none" />
-            )}
-          </div>
 
-          {/* Card 2: Total Booked */}
-          <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-100"><Users size={24} /></div>
-              <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Today's Goal</div>
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Booked</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-black tracking-tighter">{stats.totalBooked}</h3>
-                <span className="text-gray-300 font-bold text-sm">/ {stats.totalCap} 명</span>
+            {/* Card 3: Remaining Seats */}
+            <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-44">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100"><PieChart size={20} /></div>
+                <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Available</div>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Remaining Seats</p>
+                <h3 className="text-2xl font-black tracking-tighter">{stats.totalRem} <span className="text-xs text-gray-300 uppercase font-bold">Seats</span></h3>
               </div>
             </div>
-          </div>
 
-          {/* Card 3: Remaining Seats */}
-          <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 border border-amber-100"><PieChart size={24} /></div>
-              <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Available</div>
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Remaining Seats</p>
-              <h3 className="text-3xl font-black tracking-tighter">{stats.totalRem} <span className="text-sm text-gray-300 uppercase">Seats</span></h3>
-            </div>
-          </div>
-
-          {/* Card 4: Fill Rate */}
-          <div className="bg-black rounded-[32px] p-6 shadow-2xl shadow-black/20 flex flex-col justify-between text-white relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-            <div className="flex items-center justify-between mb-4 relative z-10">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white"><TrendingUp size={24} /></div>
-              <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">Fill Rate</div>
-            </div>
-            <div className="relative z-10">
-              <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1">Reservation Progress</p>
-              <div className="flex items-center gap-4">
-                <h3 className="text-4xl font-black tracking-tighter">{stats.fillRate}%</h3>
-                <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden border border-white/5">
-                  <div className="h-full bg-white transition-all duration-1000 ease-out" style={{ width: `${stats.fillRate}%` }} />
+            {/* Card 4: Fill Rate */}
+            <div className="bg-black rounded-[32px] p-6 shadow-2xl shadow-black/20 flex flex-col justify-between text-white relative overflow-hidden h-44">
+              <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white"><TrendingUp size={20} /></div>
+                <div className="text-[9px] font-black text-white/40 uppercase tracking-widest">Fill Rate</div>
+              </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Reservation Progress</p>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-3xl font-black tracking-tighter">{stats.fillRate}%</h3>
+                  <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden border border-white/5">
+                    <div className="h-full bg-white transition-all duration-1000 ease-out" style={{ width: `${stats.fillRate}%` }} />
+                  </div>
                 </div>
               </div>
             </div>
