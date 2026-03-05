@@ -3,15 +3,15 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
-// Your web app's Firebase configuration
+// 환경 변수를 사용하여 Firebase 구성을 보호합니다.
 const firebaseConfig = {
-  apiKey: "AIzaSyB0fT3NP7pWkOHEg0EcS-zHM4WaqlLHMZY",
-  authDomain: "iic-restaurant.firebaseapp.com",
-  projectId: "iic-restaurant",
-  storageBucket: "iic-restaurant.firebasestorage.app",
-  messagingSenderId: "966762800318",
-  appId: "1:966762800318:web:889388db32826388d3aaef",
-  measurementId: "G-GZW7V4GTVW"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase

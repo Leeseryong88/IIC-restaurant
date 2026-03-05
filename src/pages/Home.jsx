@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp } from "firebase/firestore";
-import { Clock, Phone, ChevronRight, X, CheckCircle2, AlertCircle, Settings } from "lucide-react";
+import { Clock, Phone, ChevronRight, X, CheckCircle2, AlertCircle, UserCog, PowerOff, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -23,7 +23,15 @@ export default function Home() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
 
-  // 실시간 타임슬롯 조회
+  // 시스템 설정 상태
+  const [sysConfig, setSysConfig] = useState({
+    operatingHours: "11:30 — 13:30",
+    reservationStart: "09:00",
+    reservationCutoff: "11:00",
+    isReservationEnabled: true
+  });
+
+  // 실시간 타임슬롯 및 설정 조회
   useEffect(() => {
     const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD 형식
     const q = query(
@@ -31,13 +39,50 @@ export default function Home() {
       where("status", "==", "open"),
       where("date", "==", todayStr)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeSlots = onSnapshot(q, (snapshot) => {
       const slots = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       slots.sort((a, b) => a.time.localeCompare(b.time));
       setTimeSlots(slots);
     });
-    return () => unsubscribe();
+
+    const unsubscribeConfig = onSnapshot(doc(db, "settings", "config"), (docSnap) => {
+      if (docSnap.exists()) {
+        setSysConfig(docSnap.data());
+      }
+    });
+
+    return () => {
+      unsubscribeSlots();
+      unsubscribeConfig();
+    };
   }, []);
+
+  // 예약 가능 여부 확인
+  const getReservationStatus = () => {
+    if (!sysConfig.isReservationEnabled) return { available: false, reason: "SYSTEM_DISABLED" };
+    
+    const now = new Date();
+    
+    // 시작 시간 체크
+    if (sysConfig.reservationStart) {
+      const [startHour, startMin] = sysConfig.reservationStart.split(":").map(Number);
+      const startDate = new Date();
+      startDate.setHours(startHour, startMin, 0, 0);
+      if (now < startDate) return { available: false, reason: "BEFORE_START", time: sysConfig.reservationStart };
+    }
+
+    // 마감 시간 체크
+    if (sysConfig.reservationCutoff) {
+      const [cutoffHour, cutoffMin] = sysConfig.reservationCutoff.split(":").map(Number);
+      const cutoffDate = new Date();
+      cutoffDate.setHours(cutoffHour, cutoffMin, 0, 0);
+      if (now > cutoffDate) return { available: false, reason: "AFTER_CUTOFF", time: sysConfig.reservationCutoff };
+    }
+
+    return { available: true };
+  };
+
+  const resStatus = getReservationStatus();
 
   // 연락처 포맷팅 (010-0000-0000)
   const formatPhone = (val) => {
@@ -63,6 +108,16 @@ export default function Home() {
   };
 
   const handleReserve = async () => {
+    // 시스템 상태 체크
+    if (!resStatus.available) {
+      let msg = "현재 예약이 불가능합니다.";
+      if (resStatus.reason === "SYSTEM_DISABLED") msg = "시스템이 일시 중지되었습니다.";
+      if (resStatus.reason === "BEFORE_START") msg = `예약은 ${resStatus.time}부터 가능합니다.`;
+      if (resStatus.reason === "AFTER_CUTOFF") msg = `금일 예약은 ${resStatus.time}에 마감되었습니다.`;
+      showStatus('error', '예약 불가', msg);
+      return;
+    }
+
     if (!selectedSlot || phone.length < 13) {
       showStatus('error', '입력 오류', '시간을 선택하고 올바른 연락처를 입력해 주세요.');
       return;
@@ -175,7 +230,7 @@ export default function Home() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, "kidcap1001@naver.com", adminPassword);
+      await signInWithEmailAndPassword(auth, "iicrestaurant@gentlemonster.com", adminPassword);
       showStatus('success', '인증 성공', '관리자 페이지로 이동합니다.');
       setTimeout(() => navigate("/admin"), 1000);
     } catch (err) {
@@ -193,10 +248,10 @@ export default function Home() {
       <div className="absolute top-6 right-6 z-40">
         <button 
           onClick={() => setShowAdminLogin(true)}
-          className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white/40 hover:text-white transition-all border border-white/5"
+          className="p-3 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full text-gray-400/60 hover:text-gray-200 transition-all border border-white/5"
           title="관리자 설정"
         >
-          <Settings size={20} />
+          <UserCog size={20} />
         </button>
       </div>
 
@@ -277,7 +332,7 @@ export default function Home() {
         </div>
         <div className="mt-12 md:mt-0 text-white/40 text-[11px] flex items-center gap-2">
           <Clock size={14} />
-          <span>식사 운영 시간 11:30 — 13:30</span>
+          <span>식사 운영 시간 {sysConfig.operatingHours}</span>
         </div>
       </div>
 
@@ -312,6 +367,21 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">타임 선택 후 연락처를 입력해 주세요.</p>
               </div>
 
+              {/* System Disabled or Out of Cutoff Warning */}
+              {!resStatus.available && (
+                <div className="p-6 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-4 text-red-600">
+                  {resStatus.reason === "BEFORE_START" ? <PlayCircle size={24} /> : <PowerOff size={24} />}
+                  <div>
+                    <p className="font-bold text-sm">현재 예약이 불가능합니다.</p>
+                    <p className="text-xs opacity-80">
+                      {resStatus.reason === "SYSTEM_DISABLED" && "시스템이 일시 중지되었습니다."}
+                      {resStatus.reason === "BEFORE_START" && `예약은 ${resStatus.time}부터 가능합니다.`}
+                      {resStatus.reason === "AFTER_CUTOFF" && `금일 예약은 ${resStatus.time}에 마감되었습니다.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">예약 시간 선택</label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -319,10 +389,10 @@ export default function Home() {
                     <button
                       key={slot.id}
                       onClick={() => setSelectedSlot(slot)}
-                      disabled={slot.remaining <= 0}
+                      disabled={slot.remaining <= 0 || !resStatus.available}
                       className={cn(
                         "relative p-5 rounded-xl border-2 transition-all duration-200 text-left group",
-                        slot.remaining <= 0 && "opacity-50 cursor-not-allowed grayscale",
+                        (slot.remaining <= 0 || !resStatus.available) && "opacity-50 cursor-not-allowed grayscale",
                         selectedSlot?.id === slot.id 
                           ? "bg-brand-dark border-brand-dark text-white shadow-xl translate-y-[-2px]" 
                           : "bg-white border-gray-100 hover:border-gray-300"
@@ -352,13 +422,14 @@ export default function Home() {
                   placeholder="010-0000-0000"
                   value={phone}
                   onChange={handlePhoneChange}
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-gray-300 transition-all text-lg tracking-wider"
+                  disabled={!resStatus.available}
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-gray-300 transition-all text-lg tracking-wider disabled:opacity-50"
                 />
               </div>
 
               <button
                 onClick={handleReserve}
-                disabled={loading}
+                disabled={loading || !resStatus.available}
                 className="w-full bg-brand-dark text-white py-5 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-black/90 active:scale-[0.98] transition-all disabled:bg-gray-400"
               >
                 {loading ? "처리 중..." : "예약하기"}
