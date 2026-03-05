@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { db, auth } from "../firebase";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, increment, onSnapshot, serverTimestamp, orderBy, writeBatch, runTransaction } from "firebase/firestore";
-import { Users, Clock, Settings, Trash2, Power, PowerOff, RefreshCw, ChevronLeft, Plus, Check, X, Edit2, Lock, ShieldCheck, Search, Shield, Calendar as CalendarIcon, Hash, Layers, Sliders, PlayCircle, BarChart3, PieChart, Activity, TrendingUp, Timer } from "lucide-react";
+import { Users, Clock, Settings, Trash2, Power, PowerOff, RefreshCw, ChevronLeft, Plus, Check, X, Edit2, Lock, ShieldCheck, Search, Shield, Calendar as CalendarIcon, Hash, Layers, Sliders, PlayCircle, BarChart3, PieChart, Activity, TrendingUp, Timer, CheckCircle2, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -58,10 +58,17 @@ export default function Admin() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTime, setFilterTime] = useState("all");
+  const [status, setStatus] = useState(null);
   const dateInputRef = React.useRef(null);
 
+  const showStatus = (type, title, message) => {
+    setStatus({ type, title, message });
+    if (type === 'success') {
+      setTimeout(() => setStatus(null), 3000);
+    }
+  };
+
   const syncAllSlots = async () => {
-    if (!confirm("모든 타임슬롯의 잔여석을 실제 예약 내역과 동기화하시겠습니까?")) return;
     setLoading(true);
     try {
       const batch = writeBatch(db);
@@ -71,12 +78,12 @@ export default function Admin() {
         batch.update(doc(db, "timeSlots", slot.id), { remaining: correctRemaining });
       });
       await batch.commit();
-      alert("모든 타임슬롯의 잔여석이 실제 예약 내역과 동기화되었습니다.");
+      showStatus('success', '동기화 완료', '잔여석 데이터가 최신 상태로 업데이트되었습니다.');
     } catch (err) {
       console.error(err);
-      alert("동기화 중 오류 발생");
+      showStatus('error', '오류 발생', '동기화 중 문제가 발생했습니다.');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 800);
     }
   };
 
@@ -360,6 +367,29 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex flex-col font-sans text-[#1A1A1A] relative">
+      {/* Status Overlay */}
+      {status && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md animate-in slide-in-from-top duration-300">
+          <div className={cn(
+            "p-4 rounded-2xl shadow-2xl flex items-center gap-4 border",
+            status.type === 'success' ? "bg-white border-green-100" : "bg-white border-red-100"
+          )}>
+            {status.type === 'success' ? (
+              <CheckCircle2 className="text-green-500 shrink-0" size={24} />
+            ) : (
+              <AlertCircle className="text-red-500 shrink-0" size={24} />
+            )}
+            <div className="flex-1">
+              <h4 className="font-bold text-sm">{status.title}</h4>
+              <p className="text-xs text-gray-500 mt-0.5">{status.message}</p>
+            </div>
+            <button onClick={() => setStatus(null)} className="text-gray-300 hover:text-black transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       {showCreateModal && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md flex items-center justify-center p-6">
