@@ -14,7 +14,7 @@ function cn(...inputs) {
 
 export default function Home() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("reserve"); // reserve, cancel, check
+  const [activeTab, setActiveTab] = useState("reserve"); // reserve, check
   const [timeSlots, setTimeSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [phone, setPhone] = useState("");
@@ -210,10 +210,7 @@ export default function Home() {
 
       const resData = { id: snap.docs[0].id, ...snap.docs[0].data() };
       setSearchResult(resData);
-      
-      if (type === "check") {
-        showStatus('success', '조회 성공', `오늘 ${resData.time} 예약이 확인되었습니다.`);
-      }
+      showStatus('success', '조회 성공', `오늘 ${resData.time} 예약이 조회되었습니다.`);
     } catch (err) {
       console.error(err);
       showStatus('error', '오류 발생', '조회 중 문제가 발생했습니다.');
@@ -373,7 +370,7 @@ export default function Home() {
       <div className="w-full md:w-[55%] bg-white p-6 md:p-16 flex flex-col items-center">
         {/* Tab Navigation */}
         <div className="w-full max-w-xl bg-gray-100 p-1 rounded-xl flex mb-12">
-          {["reserve", "cancel", "check"].map((tab) => (
+          {["reserve", "check"].map((tab) => (
             <button
               key={tab}
               onClick={() => {
@@ -386,7 +383,7 @@ export default function Home() {
                 activeTab === tab ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-gray-600"
               )}
             >
-              {tab === "reserve" ? "예약하기" : tab === "cancel" ? "예약 취소" : "예약 확인"}
+              {tab === "reserve" ? "예약하기" : "예약 조회 및 취소"}
             </button>
           ))}
         </div>
@@ -471,13 +468,11 @@ export default function Home() {
             </div>
           )}
 
-          {(activeTab === "cancel" || activeTab === "check") && (
+          {activeTab === "check" && (
             <div className="space-y-10 animate-in fade-in duration-500">
                <div>
-                <h3 className="text-3xl font-bold mb-2">
-                  {activeTab === "cancel" ? "예약 취소 신청" : "예약 내역 확인"}
-                </h3>
-                <p className="text-gray-400 text-sm">오늘 예약하신 내역을 조회합니다.</p>
+                <h3 className="text-3xl font-bold mb-2">예약 조회 및 취소</h3>
+                <p className="text-gray-400 text-sm">오늘 예약하신 내역을 조회하고 취소할 수 있습니다.</p>
               </div>
 
               {searchResult ? (
@@ -497,15 +492,13 @@ export default function Home() {
                     <div className="text-lg font-bold tracking-wider">{formatPhone(searchResult.phone)}</div>
                   </div>
 
-                  {activeTab === "cancel" && (
-                    <button
-                      onClick={confirmCancel}
-                      disabled={loading}
-                      className="w-full bg-red-500 text-white py-4 rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200"
-                    >
-                      {loading ? "취소 중..." : "이 예약 취소하기"}
-                    </button>
-                  )}
+                  <button
+                    onClick={confirmCancel}
+                    disabled={loading}
+                    className="w-full bg-red-500 text-white py-4 rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200"
+                  >
+                    {loading ? "취소 중..." : "이 예약 취소하기"}
+                  </button>
                   
                   <button 
                     onClick={() => {setSearchResult(null); setPhone("");}}
