@@ -162,7 +162,7 @@ export default function Home() {
         });
 
         transaction.update(slotRef, {
-          remaining: increment(-1)
+          remaining: slotData.remaining - 1
         });
       });
 
@@ -233,9 +233,17 @@ export default function Home() {
         const resSnap = await transaction.get(resRef);
         if (!resSnap.exists()) return; // 이미 취소됨
 
+        const slotSnap = await transaction.get(slotRef);
+        if (!slotSnap.exists()) {
+          transaction.delete(resRef); // 타임슬롯은 없지만 예약만 있는 경우 삭제만 진행
+          return;
+        }
+
+        const slotData = slotSnap.data();
+
         transaction.delete(resRef);
         transaction.update(slotRef, {
-          remaining: increment(1)
+          remaining: slotData.remaining + 1
         });
       });
 

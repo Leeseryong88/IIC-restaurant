@@ -168,14 +168,19 @@ export default function Admin() {
   }, [now, sysConfig]);
 
   // 대시보드 통계 계산
-  const stats = (() => {
+  const stats = useMemo(() => {
     const totalCap = timeSlots.reduce((acc, s) => acc + (Number(s.capacity) || 0), 0);
-    // 실제 예약 문서의 개수를 전체 예약 수로 사용
     const totalBooked = reservations.length;
-    const totalRem = Math.max(0, totalCap - totalBooked);
+    
+    // 각 슬롯별 잔여석의 합계 (마이너스 방지 포함)
+    const totalRem = timeSlots.reduce((acc, slot) => {
+      const booked = reservations.filter(r => r.timeSlotId === slot.id).length;
+      return acc + Math.max(0, (Number(slot.capacity) || 0) - booked);
+    }, 0);
+    
     const fillRate = totalCap > 0 ? Math.round((totalBooked / totalCap) * 100) : 0;
     return { totalCap, totalRem, totalBooked, fillRate };
-  })();
+  }, [timeSlots, reservations]);
 
   const filteredReservations = reservations.filter(res => {
     const matchesSearch = res.phone.includes(searchTerm.replace(/-/g, "")) || res.time.includes(searchTerm);
@@ -254,9 +259,21 @@ export default function Admin() {
 
   const saveEdit = async (slotId) => {
     try {
-      await updateDoc(doc(db, "timeSlots", slotId), { capacity: Number(editValues.capacity), remaining: Number(editValues.remaining) });
+      const slotRef = doc(db, "timeSlots", slotId);
+      const resQuery = query(collection(db, "reservations"), where("timeSlotId", "==", slotId));
+      const resSnap = await getDocs(resQuery);
+      const bookedCount = resSnap.size;
+      const newCapacity = Number(editValues.capacity);
+      
+      await updateDoc(slotRef, { 
+        capacity: newCapacity, 
+        remaining: newCapacity - bookedCount 
+      });
       setEditingSlotId(null);
-    } catch (err) { alert("수정 중 오류 발생"); }
+    } catch (err) { 
+      console.error(err);
+      alert("수정 중 오류 발생"); 
+    }
   };
 
   const toggleSlotStatus = async (slotId, currentStatus) => {
@@ -277,9 +294,17 @@ export default function Admin() {
           const resSnap = await transaction.get(resRef);
           if (!resSnap.exists()) return;
 
+          const slotSnap = await transaction.get(slotRef);
+          if (!slotSnap.exists()) {
+            transaction.delete(resRef);
+            return;
+          }
+
+          const slotData = slotSnap.data();
+
           transaction.delete(resRef);
           transaction.update(slotRef, {
-            remaining: increment(1)
+            remaining: slotData.remaining + 1
           });
         });
       } catch (err) {
@@ -590,10 +615,10 @@ export default function Admin() {
                         {editingSlotId === slot.id ? (
                           <div className="space-y-4">
                             <div className="flex justify-between items-center"><span className="text-lg font-black">{slot.time}</span><div className="flex gap-2"><button onClick={() => saveEdit(slot.id)} className="p-2 bg-black text-white rounded-xl hover:opacity-80 transition-opacity"><Check size={16}/></button><button onClick={() => setEditingSlotId(null)} className="p-2 bg-white border border-gray-200 text-gray-400 rounded-xl hover:text-black transition-colors"><X size={16}/></button></div></div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="bg-white p-3 rounded-2xl border border-gray-100"><label className="text-[10px] font-black text-gray-400 block mb-1 uppercase tracking-widest">Capacity</label><input type="number" value={editValues.capacity} onChange={(e) => setEditValues({...editValues, capacity: e.target.value})} className="w-full text-base font-black outline-none" /></div>
-                              <div className="bg-white p-3 rounded-2xl border border-gray-100"><label className="text-[10px] font-black text-blue-400 block mb-1 uppercase tracking-widest">Remaining</label><input type="number" value={editValues.remaining} onChange={(e) => setEditValues({...editValues, remaining: e.target.value})} className="w-full text-base font-black text-blue-600 outline-none" /></div>
+                            <div className="grid grid-cols-1 gap-4">
+                              <div className="bg-white p-3 rounded-2xl border border-gray-100"><label className="text-[10px] font-black text-gray-400 block mb-1 uppercase tracking-widest">Capacity (정원)</label><input type="number" value={editValues.capacity} onChange={(e) => setEditValues({...editValues, capacity: e.target.value})} className="w-full text-base font-black outline-none" /></div>
                             </div>
+                            <p className="text-[10px] text-gray-400 px-2">* 잔여석은 예약된 인원을 제외하고 자동으로 재계산됩니다.</p>
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -690,6 +715,6 @@ export default function Admin() {
 
   function startEditing(slot) {
     setEditingSlotId(slot.id);
-    setEditValues({ capacity: slot.capacity, remaining: slot.remaining });
+    setEditValues({ capacity: slot.capacity });
   }
 }
