@@ -58,6 +58,7 @@ export default function Admin() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTime, setFilterTime] = useState("all");
+  const dateInputRef = React.useRef(null);
 
   const syncAllSlots = async () => {
     if (!confirm("모든 타임슬롯의 잔여석을 실제 예약 내역과 동기화하시겠습니까?")) return;
@@ -179,8 +180,15 @@ export default function Admin() {
     }, 0);
     
     const fillRate = totalCap > 0 ? Math.round((totalBooked / totalCap) * 100) : 0;
-    return { totalCap, totalRem, totalBooked, fillRate };
-  }, [timeSlots, reservations]);
+    
+    // selectedDate 파싱
+    const d = new Date(selectedDate);
+    const month = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    const day = d.getDate().toString().padStart(2, '0');
+    const dayName = d.toLocaleString('ko-KR', { weekday: 'long' });
+    
+    return { totalCap, totalRem, totalBooked, fillRate, month, day, dayName };
+  }, [timeSlots, reservations, selectedDate]);
 
   const filteredReservations = reservations.filter(res => {
     const matchesSearch = res.phone.includes(searchTerm.replace(/-/g, "")) || res.time.includes(searchTerm);
@@ -493,10 +501,6 @@ export default function Admin() {
             <h1 className="text-xl font-black tracking-tighter uppercase">IIC Dashboard</h1>
           </div>
           <div className="h-8 w-[1px] bg-gray-200 hidden md:block" />
-          <div className="flex items-center bg-gray-100 rounded-2xl px-4 py-2 gap-2">
-            <CalendarIcon size={16} className="text-gray-400" />
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent border-none text-sm font-bold text-black focus:ring-0 p-0 cursor-pointer" />
-          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -509,7 +513,29 @@ export default function Admin() {
 
       <main className="p-8 max-w-[1600px] mx-auto w-full flex-1 space-y-8 animate-in fade-in duration-700">
         {/* Statistics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {/* Card 0: Date Selection Calendar (Square) */}
+          <div 
+            onClick={() => dateInputRef.current?.showPicker()}
+            className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-gray-200 transition-all aspect-square relative"
+          >
+            <div className="bg-black py-3 text-center">
+              <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{stats.month}</span>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
+              <span className="text-5xl font-black tracking-tighter text-zinc-900">{stats.day}</span>
+              <span className="text-[10px] font-black text-gray-400 mt-2 uppercase tracking-widest">{stats.dayName}</span>
+            </div>
+            {/* Invisible input to trigger native picker */}
+            <input 
+              ref={dateInputRef}
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)} 
+              className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none" 
+            />
+          </div>
+
           {/* Card 1: System Status with Countdown Animation */}
           <div 
             onClick={() => setShowSettingsModal(true)}
