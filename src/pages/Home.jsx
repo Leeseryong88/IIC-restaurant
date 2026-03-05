@@ -6,6 +6,7 @@ import { Clock, Phone, ChevronRight, X, CheckCircle2, AlertCircle, UserCog, Powe
 import { useNavigate } from "react-router-dom";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import GeometricBackground from "../components/GeometricBackground";
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -313,8 +314,9 @@ export default function Home() {
       )}
 
       {/* Left Section: Dark Background */}
-      <div className="w-full md:w-[45%] bg-brand-dark text-white p-8 md:p-16 flex flex-col justify-between items-start sticky top-0 md:h-screen">
-        <div>
+      <div className="w-full md:w-[45%] bg-brand-dark text-white p-8 md:p-16 flex flex-col justify-between items-start sticky top-0 md:h-screen overflow-hidden">
+        <GeometricBackground />
+        <div className="relative z-10">
           <h1 className="text-xl font-bold tracking-widest mb-20">IIC RESTAURANT</h1>
           <div className="space-y-6">
             <span className="inline-block px-3 py-1 border border-white/30 rounded-full text-[10px] tracking-widest text-white/60">
@@ -330,7 +332,7 @@ export default function Home() {
             </p>
           </div>
         </div>
-        <div className="mt-12 md:mt-0 text-white/40 text-[11px] flex items-center gap-2">
+        <div className="mt-12 md:mt-0 text-white/40 text-[11px] flex items-center gap-2 relative z-10">
           <Clock size={14} />
           <span>식사 운영 시간 {sysConfig.operatingHours}</span>
         </div>
