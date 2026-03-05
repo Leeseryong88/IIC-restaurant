@@ -18,9 +18,9 @@ const GeometricBackground = () => {
     window.addEventListener('resize', handleResize);
 
     const particles = [];
-    const particleCount = 100; // Increased count for a richer texture
-    const connectionDistance = 150; // Slightly shorter connections
-    const mouse = { x: null, y: null, radius: 200 };
+    const particleCount = 180; // Significantly increased for a denser, starry look
+    const connectionDistance = 110; // Reduced to keep the network delicate with more points
+    const mouse = { x: null, y: null, radius: 140 }; // Reduced interaction radius
 
     const handleMouseMove = (event) => {
       const rect = canvas.getBoundingClientRect();
@@ -44,22 +44,22 @@ const GeometricBackground = () => {
       reset() {
         this.x = Math.random() * (canvas.width / window.devicePixelRatio);
         this.y = Math.random() * (canvas.height / window.devicePixelRatio);
-        this.size = Math.random() * 1.5 + 0.5; // Smaller core
+        this.size = Math.random() * 1.2 + 0.4; // Even smaller, more delicate points
         this.baseSize = this.size;
-        this.vx = (Math.random() - 0.5) * 0.2;
-        this.vy = (Math.random() - 0.5) * 0.2;
-        this.opacity = Math.random() * 0.3 + 0.1; // Reduced brightness
+        this.vx = (Math.random() - 0.5) * 0.12; // Slower movement speed
+        this.vy = (Math.random() - 0.5) * 0.12; // Slower movement speed
+        this.opacity = Math.random() * 0.25 + 0.1; // Very subtle brightness
         this.baseOpacity = this.opacity;
       }
 
       draw() {
         // Draw small subtle glow
         ctx.beginPath();
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2.5);
-        gradient.addColorStop(0, `rgba(255, 255, 255, ${this.opacity * 0.5})`);
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${this.opacity * 0.4})`);
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = gradient;
-        ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw core
@@ -89,14 +89,13 @@ const GeometricBackground = () => {
 
           if (distance < mouse.radius) {
             const force = (mouse.radius - distance) / mouse.radius;
-            // Particles slowly drift away from the mouse
-            this.x -= dx * force * 0.015;
-            this.y -= dy * force * 0.015;
+            // Drifting away even more slowly
+            this.x -= dx * force * 0.01;
+            this.y -= dy * force * 0.01;
             
-            // Subtle brightening when near mouse
-            this.opacity = Math.min(0.5, this.opacity + 0.005);
+            this.opacity = Math.min(0.4, this.opacity + 0.003);
           } else {
-            if (this.opacity > this.baseOpacity) this.opacity -= 0.002;
+            if (this.opacity > this.baseOpacity) this.opacity -= 0.001;
           }
         }
       }
@@ -122,11 +121,11 @@ const GeometricBackground = () => {
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < connectionDistance) {
-            const opacity = (1 - (distance / connectionDistance)) * 0.08;
+            const opacity = (1 - (distance / connectionDistance)) * 0.06;
             
             ctx.beginPath();
             ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-            ctx.lineWidth = 0.3;
+            ctx.lineWidth = 0.25;
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
             ctx.stroke();
@@ -153,7 +152,7 @@ const GeometricBackground = () => {
       className="absolute inset-0 w-full h-full pointer-events-auto"
       style={{ 
         background: 'transparent',
-        filter: 'blur(0.3px)'
+        filter: 'blur(0.2px)'
       }}
     />
   );
